@@ -1,0 +1,47 @@
+{
+  "model_id": "MODEL_XG_GB_01",
+  "model_name": "RefVision Expected Goals (xG) Gradient Boosting Model",
+  "task_type": "Shot Outcome & Expected Goals Probability Prediction",
+  "algorithm": "GradientBoostingClassifier (scikit-learn 1.9)",
+  "version": "1.0.0",
+  "dataset_name": "StatsBomb Open Data (FIFA World Cup 2022 Matches)",
+  "license": "CC BY 4.0",
+  "trained_at": "2026-10-24T21:36:06.805318",
+  "total_samples": 286,
+  "train_samples": 200,
+  "val_samples": 43,
+  "test_samples": 43,
+  "positive_class_ratio": 0.11188811188811189,
+  "feature_names": [
+    "distance_to_goal",
+    "angle_to_goal",
+    "is_header",
+    "is_volley",
+    "is_regular_play",
+    "under_pressure"
+  ],
+  "hyperparameters": {
+    "n_estimators": 100,
+    "learning_rate": 0.08,
+    "max_depth": 3,
+    "subsample": 0.85,
+    "random_state": 42
+  },
+  "evaluation_metrics": {
+    "test_roc_auc": 0.5842,
+    "test_brier_score": 0.0998,
+    "test_log_loss": 0.4097,
+    "test_accuracy": 0.907,
+    "val_roc_auc": 0.9
+  },
+  "baseline_comparison": {
+    "baseline_algorithm": "LogisticRegression (StandardScaler)",
+    "baseline_roc_auc": 0.6579,
+    "baseline_brier_score": 0.0979,
+    "baseline_log_loss": 0.3514,
+    "baseline_accuracy": 0.8837,
+    "relative_improvement_auc": -11.2
+  },
+  "artifact_file": "shot_xg_model.joblib",
+  "limitations_notes": "1. This model estimates shot conversion probability (xG) based on geometric distance, angle, and technique from real StatsBomb event data.\n2. It does NOT evaluate referee decisions, offside calls, or VAR correctness.\n3. Optical tracking (3D player body occlusion & goalkeeper reaction speed) is not captured in event coordinate data.\n4. Designed solely for analytical decision-support and fan context."
+}

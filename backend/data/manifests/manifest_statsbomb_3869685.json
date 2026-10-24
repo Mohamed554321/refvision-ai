@@ -1,0 +1,23 @@
+{
+  "source_name": "StatsBomb Open Data",
+  "source_url": "https://github.com/statsbomb/open-data",
+  "license": "CC BY 4.0",
+  "attribution": "StatsBomb Open Data (https://statsbomb.com)",
+  "competition": "FIFA World Cup",
+  "season": "2022",
+  "match_id": 3869685,
+  "match_slug": "argentina_vs_france_2022_final",
+  "imported_at": "2026-10-24T21:34:18.069511",
+  "total_events_imported": 4407,
+  "match_details": {
+    "teams": [
+      "Argentina",
+      "France"
+    ],
+    "score": "3-3 (4-2 pens)",
+    "date": "2022-12-18",
+    "stadium": "Lusail Iconic Stadium",
+    "referee": "Szymon Marciniak"
+  },
+  "status": "SUCCESS"
+}
