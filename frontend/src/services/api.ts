@@ -432,5 +432,35 @@ export const api = {
     const res = await fetch(`${API_BASE}/live-sessions/capability-matrix`);
     if (!res.ok) throw new Error('Failed to fetch capability matrix');
     return res.json();
+  },
+
+  async startVisionPipeline(sessionId: string, targetFps = 3.0): Promise<any> {
+    const res = await fetch(`${API_BASE}/live-sessions/${sessionId}/start-vision-pipeline`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target_fps: targetFps })
+    });
+    if (!res.ok) throw new Error('Failed to start vision pipeline');
+    return res.json();
+  },
+
+  async stopVisionPipeline(sessionId: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/live-sessions/${sessionId}/stop-vision-pipeline`, {
+      method: 'POST'
+    });
+    if (!res.ok) throw new Error('Failed to stop vision pipeline');
+    return res.json();
+  },
+
+  async getRealtimeVisionTelemetry(sessionId: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/live-sessions/${sessionId}/realtime-telemetry`);
+    if (!res.ok) throw new Error('Failed to fetch realtime telemetry');
+    return res.json();
+  },
+
+  async getVisionDiagnostics(sessionId: string): Promise<any[]> {
+    const res = await fetch(`${API_BASE}/live-sessions/${sessionId}/vision-diagnostics`);
+    if (!res.ok) throw new Error('Failed to fetch vision diagnostics');
+    return res.json();
   }
 };

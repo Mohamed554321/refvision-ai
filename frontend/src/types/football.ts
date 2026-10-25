@@ -470,24 +470,40 @@ export interface LiveSessionEvent {
 
 export interface LiveSessionIncident {
   incident_id: string;
+  session_id?: string;
+  incident_category?: string;
+  category_label?: string;
+  category_label_ar?: string;
   minute: number;
   second: number;
   timestamp_seconds: number;
-  classification: string;
-  category: string;
+  classification?: string;
+  category?: string;
   priority: 'CRITICAL_HIGH' | 'HIGH' | 'MEDIUM' | 'LOW';
-  priority_reason: string;
+  priority_reason?: string;
   coordinates: { x: number; y: number };
-  description: string;
-  stage_1_detected: boolean;
-  stage_2_category: string;
-  stage_3_rule: {
+  description?: string;
+  observable_facts?: string[];
+  model_inference?: string;
+  confidence_score?: number;
+  confidence_label?: string;
+  stage_1_detected?: boolean;
+  stage_2_category?: string;
+  stage_3_rule?: {
     law_number: string;
     citation: string;
     citation_ar: string;
     official_url: string;
   };
-  stage_4_recommendation: {
+  applicable_law?: {
+    law_number: string;
+    title: string;
+    title_ar?: string;
+    citation: string;
+    citation_ar: string;
+    official_url: string;
+  };
+  stage_4_recommendation?: {
     preliminary_ruling: string;
     preliminary_ruling_ar: string;
     recommended_restart: string;
@@ -495,7 +511,12 @@ export interface LiveSessionIncident {
     uncertainty_notice: string;
     uncertainty_notice_ar: string;
   };
-  stage_5_human_status: 'AWAITING_OFFICIAL_RULING' | 'DECISION_RECORDED';
+  preliminary_recommendation?: string;
+  preliminary_recommendation_ar?: string;
+  missing_evidence_and_uncertainty?: string;
+  evidence_image_url?: string;
+  stage_5_human_status?: 'AWAITING_OFFICIAL_RULING' | 'DECISION_RECORDED' | 'RECOMMEND_REVIEW' | 'EVIDENCE_INSUFFICIENT' | 'PRELIMINARY_RECOMMENDATION_AVAILABLE';
+  review_status?: string;
   human_decision?: {
     official_ruling: string;
     official_ruling_ar?: string;
@@ -505,6 +526,38 @@ export interface LiveSessionIncident {
     recorded_by: string;
     recorded_at: string;
   } | null;
+}
+
+export interface RealtimeVisionTelemetry {
+  session_id: string;
+  is_running: boolean;
+  is_paused: boolean;
+  stream_url?: string;
+  frames_received: number;
+  frames_analyzed: number;
+  frames_dropped: number;
+  current_fps: number;
+  target_fps: number;
+  measured_latency_ms: number;
+  queue_depth: number;
+  current_minute: number;
+  current_second: number;
+  current_timestamp_seconds: number;
+  is_pitch_scene: boolean;
+  pitch_grass_ratio: number;
+  lines_detected_count: number;
+  active_tracks_count: number;
+  model_name: string;
+  model_operational: boolean;
+  new_incidents: any[];
+}
+
+export interface VisionDiagnosticStage {
+  stage: number;
+  name: string;
+  status: 'PASS' | 'FAIL' | 'PARTIAL';
+  description: string;
+  measured_value?: string;
 }
 
 export interface SourceCheckResult {
