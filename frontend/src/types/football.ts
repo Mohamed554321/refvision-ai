@@ -453,3 +453,120 @@ export interface VideoAnalysisDetail {
   created_at?: string;
 }
 
+export interface LiveSessionEvent {
+  id: string;
+  event_type: string;
+  minute: number;
+  second: number;
+  timestamp_seconds: number;
+  player_name?: string;
+  team_id?: string;
+  x?: number;
+  y?: number;
+  description?: string;
+  outcome?: string;
+  source?: string;
+}
+
+export interface LiveSessionIncident {
+  incident_id: string;
+  minute: number;
+  second: number;
+  timestamp_seconds: number;
+  classification: string;
+  category: string;
+  priority: 'CRITICAL_HIGH' | 'HIGH' | 'MEDIUM' | 'LOW';
+  priority_reason: string;
+  coordinates: { x: number; y: number };
+  description: string;
+  stage_1_detected: boolean;
+  stage_2_category: string;
+  stage_3_rule: {
+    law_number: string;
+    citation: string;
+    citation_ar: string;
+    official_url: string;
+  };
+  stage_4_recommendation: {
+    preliminary_ruling: string;
+    preliminary_ruling_ar: string;
+    recommended_restart: string;
+    recommended_card: string;
+    uncertainty_notice: string;
+    uncertainty_notice_ar: string;
+  };
+  stage_5_human_status: 'AWAITING_OFFICIAL_RULING' | 'DECISION_RECORDED';
+  human_decision?: {
+    official_ruling: string;
+    official_ruling_ar?: string;
+    disciplinary_action: string;
+    restart_play: string;
+    rationale: string;
+    recorded_by: string;
+    recorded_at: string;
+  } | null;
+}
+
+export interface SourceCheckResult {
+  accessible: boolean;
+  status_code: number;
+  content_type?: string;
+  is_direct_video_stream: boolean;
+  error_reason?: string;
+  latency_ms: number;
+  checked_at: string;
+}
+
+export interface LiveSessionReport {
+  session_id: string;
+  session_title: string;
+  source_type: string;
+  source_url?: string;
+  match_id?: string;
+  status: string;
+  generated_at: string;
+  duration_minutes: number;
+  metrics: {
+    total_events_processed: number;
+    total_incidents_flagged: number;
+    human_decisions_recorded: number;
+    average_latency_ms: number;
+    failed_segments_count: number;
+  };
+  incidents_by_category: Record<string, number>;
+  capability_disclaimers: string[];
+}
+
+export interface LiveSession {
+  id: string;
+  title: string;
+  match_id?: string;
+  source_type: 'VIDEO_URL' | 'VIDEO_UPLOAD' | 'EVENT_FEED_SIMULATION' | 'MANUAL';
+  source_url?: string;
+  video_analysis_id?: string;
+  status: 'IDLE' | 'ACTIVE' | 'PAUSED' | 'STOPPED' | 'ERROR';
+  connection_status: 'CONNECTED' | 'BUFFERING' | 'DISCONNECTED' | 'WARNING_HTML_PAGE' | 'WARNING' | 'ERROR';
+  current_minute: number;
+  current_second: number;
+  current_timestamp_seconds: number;
+  events_processed_count: number;
+  incidents_flagged_count: number;
+  human_decisions_count: number;
+  measured_latency_ms: number;
+  source_check_result_json?: SourceCheckResult;
+  events_log_json?: LiveSessionEvent[];
+  incidents_log_json?: LiveSessionIncident[];
+  session_report_json?: LiveSessionReport;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CapabilityMatrixItem {
+  capability: string;
+  source_type: string;
+  status: 'VERIFIED_OPERATIONAL' | 'PARTIALLY_SUPPORTED' | 'UNAVAILABLE';
+  description: string;
+  verified_in_demo: boolean;
+}
+
+

@@ -3,7 +3,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { api } from '../services/api';
 import {
   Shield, Eye, Flame, Activity, CheckCircle2, ChevronRight, Cpu,
-  Video, Scale, Play, Award, Calendar, Database, AlertTriangle
+  Video, Scale, Play, Award, Calendar, Database, AlertTriangle, Radio
 } from 'lucide-react';
 
 interface HomePageProps {
@@ -115,6 +115,27 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate, onSeek }) => {
               <Eye size={18} />
               <span>{isRtl ? 'فتح مركز المباراة التفاعلي' : 'Open Match Centre'}</span>
               <ChevronRight size={16} />
+            </button>
+
+            <button
+              onClick={() => onNavigate('live-monitor')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                color: '#ef4444',
+                border: '1px solid #ef4444',
+                borderRadius: '8px',
+                padding: '14px 24px',
+                fontSize: '14px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Radio size={18} />
+              <span>{isRtl ? 'بدء المراقبة المباشرة' : 'Start Live Monitoring'}</span>
             </button>
 
             <button

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLanguage } from '../i18n/LanguageContext';
-import { Shield, Eye, Flame, Activity, FileText, Settings, Globe, PlayCircle, Database, Video } from 'lucide-react';
+import { Shield, Eye, Flame, Activity, FileText, Settings, Globe, PlayCircle, Database, Video, Radio } from 'lucide-react';
 
 interface NavbarProps {
   activeTab: string;
@@ -15,13 +15,14 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, userPoi
   const navItems = [
     { id: 'home', label: t.navHome, icon: Eye },
     { id: 'match', label: t.navMatchCenter, icon: PlayCircle },
-    { id: 'referee', label: t.navReferee, icon: Shield, badge: hasActiveReview ? 'VAR' : undefined },
-    { id: 'video-analysis', label: (t as any).navVideoAnalysis || 'Video Analysis', icon: Video, badge: 'NEW' },
+    { id: 'live-monitor', label: (t as any).navLiveMonitor || 'Live Monitor', icon: Radio, badge: 'LIVE', badgeColor: '#ef4444' },
+    { id: 'video-analysis', label: (t as any).navVideoAnalysis || 'Video Analysis', icon: Video, badge: 'NEW', badgeColor: '#00FF87' },
+    { id: 'referee', label: t.navReferee, icon: Shield, badge: hasActiveReview ? 'VAR' : undefined, badgeColor: '#f59e0b' },
     { id: 'explainer', label: t.navExplainer, icon: FileText },
     { id: 'fan', label: t.navFanArena, icon: Flame, points: `${userPoints} pts` },
     { id: 'analytics', label: t.navAnalytics, icon: Activity },
-    { id: 'transparency', label: (t as any).navTransparency || 'Data & Transparency', icon: Database },
     { id: 'report', label: t.navReport, icon: FileText },
+    { id: 'transparency', label: (t as any).navTransparency || 'Data & Transparency', icon: Database },
     { id: 'settings', label: t.navSettings, icon: Settings },
   ];
 
@@ -148,7 +149,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, userPoi
                 {item.badge && (
                   <span style={{
                     fontSize: '9px',
-                    backgroundColor: '#ff0055',
+                    backgroundColor: (item as any).badgeColor || '#ff0055',
                     color: '#fff',
                     padding: '1px 5px',
                     borderRadius: '10px',

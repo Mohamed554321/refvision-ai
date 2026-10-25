@@ -9,10 +9,11 @@ export const translations = {
     nonAuthoritativeBadge: "AI Decision Support • Human Referee Has Final Authority",
 
     // Nav
-    navHome: "Home",
-    navMatchCenter: "Match Center",
-    navReferee: "Referee Intelligence",
+    navHome: "Overview",
+    navMatchCenter: "Match Centre",
+    navLiveMonitor: "Live Monitor",
     navVideoAnalysis: "Video Analysis",
+    navReferee: "Referee Intelligence",
     navExplainer: "Decision Explainer",
     navFanArena: "Fan Arena",
     navAnalytics: "Tactical Analytics",
@@ -114,10 +115,11 @@ export const translations = {
     nonAuthoritativeBadge: "دعم تحكيمي ذكي • الحكم البشري هو صاحب القرار النهائي",
 
     // Nav
-    navHome: "الرئيسية",
+    navHome: "نظرة عامة",
     navMatchCenter: "مركز المباراة",
-    navReferee: "غرفة التحكيم الذكية",
+    navLiveMonitor: "المساعد المباشر",
     navVideoAnalysis: "تحليل الفيديو",
+    navReferee: "غرفة التحكيم الذكية",
     navExplainer: "مفسر القرارات",
     navFanArena: "ساحة المشجعين",
     navAnalytics: "التحليلات التكتيكية",

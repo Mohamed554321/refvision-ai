@@ -304,6 +304,7 @@ def get_match_events(
     return [
         {
             "id": e.id,
+            "match_id": e.match_id,
             "event_type": e.event_type,
             "minute": e.minute,
             "second": e.second,

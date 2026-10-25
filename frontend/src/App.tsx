@@ -4,6 +4,7 @@ import { Navbar } from './components/Navbar';
 import { MatchHeader } from './components/MatchHeader';
 import { HomePage } from './pages/HomePage';
 import { LiveMatchPage } from './pages/LiveMatchPage';
+import { LiveMonitorPage } from './pages/LiveMonitorPage';
 import { RefereeIntelligencePage } from './pages/RefereeIntelligencePage';
 import { VideoAnalysisPage } from './pages/VideoAnalysisPage';
 import { DecisionExplainerPage } from './pages/DecisionExplainerPage';
@@ -261,6 +262,10 @@ const RefVisionAppContent: React.FC = () => {
             onReset={handleReset}
             onAdvance={handleAdvance}
           />
+        )}
+
+        {activeTab === 'live-monitor' && (
+          <LiveMonitorPage />
         )}
 
         {activeTab === 'referee' && (

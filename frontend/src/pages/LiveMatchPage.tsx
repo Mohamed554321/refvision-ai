@@ -36,9 +36,16 @@ export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({
 }) => {
   const { t, isRtl } = useLanguage();
 
-  // Match Selection State
+  // Match Selection & Filter State
   const [selectedMatchId, setSelectedMatchId] = useState<string>('MATCH_PL_2026_01');
   const [availableMatches, setAvailableMatches] = useState<any[]>([]);
+  const [matchCategoryFilter, setMatchCategoryFilter] = useState<'ALL' | 'HISTORICAL' | 'SYNTHETIC'>('ALL');
+
+  const filteredMatches = availableMatches.filter(m => {
+    if (matchCategoryFilter === 'HISTORICAL') return !m.is_synthetic;
+    if (matchCategoryFilter === 'SYNTHETIC') return m.is_synthetic;
+    return true;
+  });
   const [currentMatch, setCurrentMatch] = useState<any>(defaultMatch);
   const [currentEvents, setCurrentEvents] = useState<PitchEventMarker[]>([]);
   const [currentStats, setCurrentStats] = useState<any>(null);
@@ -188,15 +195,65 @@ export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({
         flexWrap: 'wrap',
         gap: '12px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Trophy size={16} color="#00FF87" />
-          <span style={{ fontSize: '13px', fontWeight: 700, color: '#FFFFFF' }}>
-            {isRtl ? 'اختيار المباراة المراد فحصها:' : 'Select Match Workspace:'}
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Trophy size={16} color="#00FF87" />
+            <span style={{ fontSize: '13px', fontWeight: 800, color: '#FFFFFF' }}>
+              {isRtl ? 'مكتبة المباريات (11 مباراة متاحة):' : 'Multi-Match Library (11 Matches Available):'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: '4px', backgroundColor: '#070b14', padding: '3px', borderRadius: '6px', border: '1px solid #1e2e45' }}>
+            <button
+              onClick={() => setMatchCategoryFilter('ALL')}
+              style={{
+                padding: '4px 10px',
+                borderRadius: '4px',
+                border: 'none',
+                backgroundColor: matchCategoryFilter === 'ALL' ? 'rgba(0,255,135,0.2)' : 'transparent',
+                color: matchCategoryFilter === 'ALL' ? '#00FF87' : '#94a3b8',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              All ({availableMatches.length})
+            </button>
+            <button
+              onClick={() => setMatchCategoryFilter('HISTORICAL')}
+              style={{
+                padding: '4px 10px',
+                borderRadius: '4px',
+                border: 'none',
+                backgroundColor: matchCategoryFilter === 'HISTORICAL' ? 'rgba(56,189,248,0.2)' : 'transparent',
+                color: matchCategoryFilter === 'HISTORICAL' ? '#38bdf8' : '#94a3b8',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              Historical StatsBomb ({availableMatches.filter(m => !m.is_synthetic).length})
+            </button>
+            <button
+              onClick={() => setMatchCategoryFilter('SYNTHETIC')}
+              style={{
+                padding: '4px 10px',
+                borderRadius: '4px',
+                border: 'none',
+                backgroundColor: matchCategoryFilter === 'SYNTHETIC' ? 'rgba(245,158,11,0.2)' : 'transparent',
+                color: matchCategoryFilter === 'SYNTHETIC' ? '#f59e0b' : '#94a3b8',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              Synthetic Scenarios ({availableMatches.filter(m => m.is_synthetic).length})
+            </button>
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {availableMatches.map(m => {
+          {filteredMatches.map(m => {
             const isSelected = selectedMatchId === m.id;
             const homeName = m.home_team?.short_code || m.home_team?.name || 'Home';
             const awayName = m.away_team?.short_code || m.away_team?.name || 'Away';
@@ -212,7 +269,7 @@ export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({
                   border: isSelected ? '1px solid #00FF87' : '1px solid #1e2e45',
                   color: isSelected ? '#00FF87' : '#94a3b8',
                   borderRadius: '8px',
-                  padding: '7px 14px',
+                  padding: '7px 12px',
                   fontSize: '12px',
                   fontWeight: isSelected ? 800 : 500,
                   cursor: 'pointer',
@@ -228,9 +285,10 @@ export const LiveMatchPage: React.FC<LiveMatchPageProps> = ({
                   padding: '1px 5px',
                   borderRadius: '3px',
                   backgroundColor: m.is_synthetic ? 'rgba(0, 255, 135, 0.2)' : 'rgba(56, 189, 248, 0.2)',
-                  color: m.is_synthetic ? '#00FF87' : '#38bdf8'
+                  color: m.is_synthetic ? '#00FF87' : '#38bdf8',
+                  fontWeight: 700
                 }}>
-                  {m.is_synthetic ? 'SYNTHETIC DEMO' : 'STATSBOMB'}
+                  {m.is_synthetic ? 'SYNTHETIC' : 'STATSBOMB'}
                 </span>
               </button>
             );

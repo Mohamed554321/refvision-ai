@@ -7,11 +7,13 @@ import { Settings, Cpu, ShieldCheck, CheckCircle2, Play, Globe, AlertCircle, Ref
 export const SettingsPage: React.FC = () => {
   const { t, language, setLanguage, isRtl } = useLanguage();
   const [providerStatus, setProviderStatus] = useState<any>(null);
+  const [capabilityMatrix, setCapabilityMatrix] = useState<any[]>([]);
   const [execution, setExecution] = useState<MultiAgentWorkflowExecution | null>(null);
   const [isRunning, setIsRunning] = useState(false);
 
   useEffect(() => {
     api.getProviderStatus().then(setProviderStatus).catch(() => {});
+    api.getCapabilityMatrix().then(setCapabilityMatrix).catch(() => {});
   }, []);
 
   const handleRunPipeline = async () => {
@@ -278,6 +280,65 @@ export const SettingsPage: React.FC = () => {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Honest Capability & Limitation Matrix */}
+      <div style={{
+        backgroundColor: '#0c1324',
+        border: '1px solid #1e293b',
+        borderRadius: '16px',
+        padding: '24px',
+        marginBottom: '28px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+          <ShieldCheck size={20} color="#00FF87" />
+          <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#FFFFFF', margin: 0 }}>
+            {isRtl ? 'مصفوفة القدرات الفنية وحدود النظام الشفافة' : 'RefVision Technical Capability & Sensor Boundary Matrix'}
+          </h2>
+        </div>
+        <p style={{ fontSize: '13px', color: '#94a3b8', margin: '0 0 18px 0', lineHeight: 1.5 }}>
+          {isRtl
+            ? 'تلتزم ريف فيجن بالشفافية الكاملة: نوضح بدقة ما هو مفعل ومؤكد محلياً بدون تكلفة ($0)، مقابل ما يتطلب تقنيات بث تلفزيوني متخصصة مثل التتبع ثلاثي الأبعاد بالأشعة أو مجسات الكرة المتصلة.'
+            : 'RefVision AI strictly adheres to honest AI disclosure: we explicitly separate verified $0 local capabilities from proprietary broadcast features requiring calibrated 12-camera optical arrays or connected-ball IMUs.'}
+        </p>
+
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: isRtl ? 'right' : 'left' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #1e293b', color: '#64748b', fontSize: '11px', textTransform: 'uppercase' }}>
+                <th style={{ padding: '10px 12px' }}>Capability</th>
+                <th style={{ padding: '10px 12px' }}>Input Source</th>
+                <th style={{ padding: '10px 12px' }}>Implementation Status</th>
+                <th style={{ padding: '10px 12px' }}>Verified Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {capabilityMatrix.map((item, idx) => {
+                const isOp = item.status === 'VERIFIED_OPERATIONAL';
+                const isPart = item.status === 'PARTIALLY_SUPPORTED';
+                return (
+                  <tr key={idx} style={{ borderBottom: '1px solid #131d2e' }}>
+                    <td style={{ padding: '12px', fontWeight: 700, color: '#ffffff' }}>{item.capability}</td>
+                    <td style={{ padding: '12px', color: '#38bdf8', fontFamily: 'monospace', fontSize: '11px' }}>{item.source_type}</td>
+                    <td style={{ padding: '12px' }}>
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: 800,
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        backgroundColor: isOp ? 'rgba(0,255,135,0.15)' : isPart ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
+                        color: isOp ? '#00ff87' : isPart ? '#f59e0b' : '#ef4444'
+                      }}>
+                        {item.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px', color: '#94a3b8', fontSize: '12px', lineHeight: 1.4 }}>{item.description}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

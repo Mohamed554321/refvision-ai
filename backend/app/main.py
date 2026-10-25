@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.simulation.match_engine import MatchEngine
 from app.predictions.game_engine import PredictionEngine
 from app.orchestration.pipeline import MultiAgentOrchestrationPipeline
-from app.api import routes_match, routes_referee, routes_fan, routes_agents, routes_platform, routes_video_analysis
+from app.api import routes_match, routes_referee, routes_fan, routes_agents, routes_platform, routes_video_analysis, routes_live_sessions
 from app.db.init_db import init_db
 
 
@@ -43,6 +43,7 @@ orchestration_pipeline = MultiAgentOrchestrationPipeline()
 # Include Routers
 app.include_router(routes_platform.router)
 app.include_router(routes_video_analysis.router)
+app.include_router(routes_live_sessions.router)
 app.include_router(routes_match.get_routes(match_engine, prediction_engine))
 app.include_router(routes_referee.get_routes(match_engine, orchestration_pipeline))
 app.include_router(routes_fan.get_routes(match_engine, prediction_engine))

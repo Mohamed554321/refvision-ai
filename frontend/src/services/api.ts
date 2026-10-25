@@ -323,5 +323,114 @@ export const api = {
     const res = await fetch(`${API_BASE}/matches/${matchId}/statistics`);
     if (!res.ok) throw new Error('Failed to fetch match statistics');
     return res.json();
+  },
+
+  // -----------------------------------------------------------
+  // Live Referee Assistant & Match Monitoring API
+  // -----------------------------------------------------------
+  async createLiveSession(data: {
+    title: string;
+    match_id?: string;
+    source_type: string;
+    source_url?: string;
+    video_analysis_id?: string;
+  }): Promise<any> {
+    const res = await fetch(`${API_BASE}/live-sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error('Failed to create live session');
+    return res.json();
+  },
+
+  async getLiveSessions(): Promise<any[]> {
+    const res = await fetch(`${API_BASE}/live-sessions`);
+    if (!res.ok) throw new Error('Failed to list live sessions');
+    return res.json();
+  },
+
+  async getLiveSession(sessionId: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/live-sessions/${sessionId}`);
+    if (!res.ok) throw new Error('Failed to fetch live session');
+    return res.json();
+  },
+
+  async checkLiveSource(sessionId: string, url: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/live-sessions/${sessionId}/source-check`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    if (!res.ok) throw new Error('Source check failed');
+    return res.json();
+  },
+
+  async startLiveSession(sessionId: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/live-sessions/${sessionId}/start`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to start session');
+    return res.json();
+  },
+
+  async pauseLiveSession(sessionId: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/live-sessions/${sessionId}/pause`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to pause session');
+    return res.json();
+  },
+
+  async stopLiveSession(sessionId: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/live-sessions/${sessionId}/stop`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to stop session');
+    return res.json();
+  },
+
+  async tickLiveSession(sessionId: string, advanceSeconds = 15.0): Promise<any> {
+    const res = await fetch(`${API_BASE}/live-sessions/${sessionId}/tick`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ advance_seconds: advanceSeconds })
+    });
+    if (!res.ok) throw new Error('Tick failed');
+    return res.json();
+  },
+
+  async injectLiveManualEvent(sessionId: string, eventData: any): Promise<any> {
+    const res = await fetch(`${API_BASE}/live-sessions/${sessionId}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(eventData)
+    });
+    if (!res.ok) throw new Error('Failed to inject live event');
+    return res.json();
+  },
+
+  async recordLiveDecision(sessionId: string, payload: {
+    incident_id: string;
+    official_ruling: string;
+    official_ruling_ar?: string;
+    disciplinary_action?: string;
+    restart_play?: string;
+    rationale: string;
+    recorded_by?: string;
+  }): Promise<any> {
+    const res = await fetch(`${API_BASE}/live-sessions/${sessionId}/record-decision`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error('Failed to record live decision');
+    return res.json();
+  },
+
+  async getLiveSessionReport(sessionId: string): Promise<any> {
+    const res = await fetch(`${API_BASE}/live-sessions/${sessionId}/report`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to generate report');
+    return res.json();
+  },
+
+  async getCapabilityMatrix(): Promise<any[]> {
+    const res = await fetch(`${API_BASE}/live-sessions/capability-matrix`);
+    if (!res.ok) throw new Error('Failed to fetch capability matrix');
+    return res.json();
   }
 };

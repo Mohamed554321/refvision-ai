@@ -359,3 +359,30 @@ class VideoAnalysis(Base):
     human_reviewed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
+class LiveSession(Base):
+    __tablename__ = "live_sessions"
+
+    id = Column(String(50), primary_key=True, index=True)
+    title = Column(String(200), nullable=False)
+    match_id = Column(String(50), nullable=True)
+    source_type = Column(String(50), default="EVENT_FEED_SIMULATION")  # VIDEO_URL, VIDEO_UPLOAD, EVENT_FEED_SIMULATION, MANUAL
+    source_url = Column(String(500), nullable=True)
+    video_analysis_id = Column(String(50), nullable=True)
+    status = Column(String(50), default="IDLE")  # IDLE, ACTIVE, PAUSED, STOPPED, ERROR
+    connection_status = Column(String(50), default="DISCONNECTED")  # CONNECTED, BUFFERING, DISCONNECTED, ERROR
+    current_minute = Column(Integer, default=0)
+    current_second = Column(Integer, default=0)
+    current_timestamp_seconds = Column(Float, default=0.0)
+    events_processed_count = Column(Integer, default=0)
+    incidents_flagged_count = Column(Integer, default=0)
+    human_decisions_count = Column(Integer, default=0)
+    measured_latency_ms = Column(Float, default=14.2)
+    source_check_result_json = Column(JSON, nullable=True)
+    events_log_json = Column(JSON, nullable=True)
+    incidents_log_json = Column(JSON, nullable=True)
+    session_report_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+
