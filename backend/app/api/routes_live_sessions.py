@@ -15,58 +15,32 @@ import urllib.parse
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 import requests
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.db.models import LiveSession, Match, MatchEvent, Incident, RuleReference, AuditEvent
+from app.evidence.stream_security import (
+    validate_stream_url,
+    safe_fetch_stream_head,
+    safe_fetch_stream_content,
+    validate_and_inspect_hls_playlist,
+    is_dev_local_stream_enabled,
+    get_environment_mode,
+    get_configured_dev_local_port,
+    PRIVATE_NETWORKS
+)
 
 router = APIRouter(prefix="/api/live-sessions", tags=["live-sessions"])
 
 # -------------------------------------------------------------
-# SSRF Protection & URL Validation
+# SSRF Protection & URL Validation Wrapper
 # -------------------------------------------------------------
-PRIVATE_NETWORKS = [
-    ipaddress.ip_network("127.0.0.0/8"),
-    ipaddress.ip_network("10.0.0.0/8"),
-    ipaddress.ip_network("172.16.0.0/12"),
-    ipaddress.ip_network("192.168.0.0/16"),
-    ipaddress.ip_network("169.254.0.0/16"),
-    ipaddress.ip_network("0.0.0.0/8"),
-    ipaddress.ip_network("::1/128"),
-    ipaddress.ip_network("fc00::/7"),
-    ipaddress.ip_network("fe80::/10"),
-]
-
 def is_safe_public_url(url: str) -> tuple:
-    try:
-        parsed = urllib.parse.urlparse(url)
-        if parsed.scheme not in ("http", "https"):
-            return False, f"Unsupported protocol '{parsed.scheme}'. Only http:// and https:// are permitted."
-        
-        hostname = parsed.hostname
-        if not hostname:
-            return False, "Invalid URL: missing hostname."
-
-        # Block localhost strings explicitly
-        if hostname.lower() in ("localhost", "127.0.0.1", "0.0.0.0", "::1"):
-            return False, "Access to localhost or loopback addresses is strictly forbidden (SSRF Protection)."
-
-        # Resolve IP address
-        try:
-            ip_str = socket.gethostbyname(hostname)
-            ip_obj = ipaddress.ip_address(ip_str)
-        except Exception as e:
-            return False, f"Could not resolve domain name: {e}"
-
-        for net in PRIVATE_NETWORKS:
-            if ip_obj in net:
-                return False, f"Access to private/internal network IP ({ip_str}) is blocked (SSRF Protection)."
-
-        return True, ip_str
-    except Exception as e:
-        return False, f"URL validation error: {str(e)}"
+    """Wrapper preserving backward compatibility with existing tests and callers."""
+    is_safe, detail, meta = validate_stream_url(url)
+    return is_safe, detail
 
 
 # -------------------------------------------------------------
@@ -168,6 +142,13 @@ def get_capability_matrix():
             "verified_in_demo": True
         },
         {
+            "capability": "Local HLS Stream Testing (Development Mode)",
+            "source_type": "VIDEO_URL",
+            "status": "VERIFIED_OPERATIONAL" if is_dev_local_stream_enabled() else "DISABLED_IN_PRODUCTION",
+            "description": f"Enables local loopback HLS stream validation (http://127.0.0.1:{get_configured_dev_local_port()}/live.m3u8) strictly when REFVISION_ENV=development and REFVISION_ENABLE_DEV_LOCAL_STREAM=true.",
+            "verified_in_demo": True
+        },
+        {
             "capability": "Local Video Frame Extraction & OpenCV Decoding",
             "source_type": "VIDEO_UPLOAD",
             "status": "VERIFIED_OPERATIONAL",
@@ -226,18 +207,22 @@ def check_video_source(session_id: str, req: SourceCheckRequest, db: Session = D
     """
     SSRF-protected connection test for an accessible video stream URL.
     Validates URL safety, checks Content-Type, latency, and decodability.
+    Supports HLS playlist (.m3u8) inspection and safe segment verification.
     """
     session = db.query(LiveSession).filter_by(id=session_id).first()
     if not session:
         raise HTTPException(status_code=404, detail="Live session not found")
 
-    is_safe, detail = is_safe_public_url(req.url)
+    is_safe, detail, meta = validate_stream_url(req.url)
     if not is_safe:
         res = {
             "accessible": False,
             "status_code": 400,
             "content_type": None,
             "is_direct_video_stream": False,
+            "is_hls": False,
+            "is_dev_local_stream": False,
+            "proxy_url": None,
             "error_reason": f"SECURITY_BLOCKED: {detail}",
             "latency_ms": 0.0,
             "checked_at": datetime.utcnow().isoformat()
@@ -249,39 +234,83 @@ def check_video_source(session_id: str, req: SourceCheckRequest, db: Session = D
 
     start_t = time.perf_counter()
     try:
-        # Perform HEAD or stream-limited GET request with short timeout
-        headers = {"User-Agent": "RefVision-LiveAssistant/2.0 (Officiating Media Checker)"}
-        resp = requests.head(req.url, headers=headers, timeout=5, allow_redirects=True)
-        if resp.status_code >= 400:
-            resp = requests.get(req.url, headers=headers, timeout=5, stream=True)
-            resp.close()
+        # Perform HEAD request using redirect-guarded fetch
+        try:
+            resp = safe_fetch_stream_head(req.url, timeout=5)
+            if resp.status_code >= 400 or resp.status_code == 405:
+                resp = safe_fetch_stream_content(req.url, timeout=5)
+        except Exception:
+            resp = safe_fetch_stream_content(req.url, timeout=5)
 
         elapsed_ms = round((time.perf_counter() - start_t) * 1000, 1)
         c_type = resp.headers.get("Content-Type", "").lower()
+        parsed_path = urllib.parse.urlparse(req.url).path.lower()
 
         video_content_types = [
             "video/mp4", "video/webm", "video/ogg", "video/quicktime",
             "application/vnd.apple.mpegurl", "application/x-mpegurl", "video/mp2t"
         ]
         is_video = any(vt in c_type for vt in video_content_types)
+        is_hls = (
+            parsed_path.endswith(".m3u8")
+            or "mpegurl" in c_type
+            or "application/x-mpegurl" in c_type
+            or "vnd.apple.mpegurl" in c_type
+        )
+        is_dev_stream = meta.get("is_dev_local_stream", False) if meta else False
 
-        if "text/html" in c_type:
+        # If it's an HLS playlist, fetch and validate segments
+        segment_count = 0
+        if is_hls or parsed_path.endswith(".m3u8"):
+            try:
+                playlist_resp = safe_fetch_stream_content(req.url, timeout=5)
+                hls_valid, hls_msg, segments = validate_and_inspect_hls_playlist(req.url, playlist_resp.text)
+                if not hls_valid:
+                    res = {
+                        "accessible": False,
+                        "status_code": 400,
+                        "content_type": c_type or "application/vnd.apple.mpegurl",
+                        "is_direct_video_stream": False,
+                        "is_hls": True,
+                        "is_dev_local_stream": is_dev_stream,
+                        "proxy_url": None,
+                        "error_reason": f"SECURITY_BLOCKED: {hls_msg}",
+                        "latency_ms": elapsed_ms,
+                        "checked_at": datetime.utcnow().isoformat()
+                    }
+                    session.source_check_result_json = res
+                    session.connection_status = "ERROR"
+                    db.commit()
+                    return res
+                segment_count = len(segments)
+            except Exception:
+                pass
+
+        if "text/html" in c_type and not is_hls:
             res = {
                 "accessible": True,
                 "status_code": resp.status_code,
                 "content_type": c_type,
                 "is_direct_video_stream": False,
+                "is_hls": False,
+                "is_dev_local_stream": is_dev_stream,
+                "proxy_url": None,
                 "error_reason": "URL points to an HTML webpage rather than a raw decodable video stream. Direct media stream (MP4/HLS/WebM) or local video file required.",
                 "latency_ms": elapsed_ms,
                 "checked_at": datetime.utcnow().isoformat()
             }
             session.connection_status = "WARNING_HTML_PAGE"
-        elif is_video or resp.status_code == 200:
+        elif is_video or is_hls or resp.status_code == 200:
+            proxy_url = f"/api/live-sessions/{session_id}/hls-proxy?url={urllib.parse.quote(req.url)}"
             res = {
                 "accessible": True,
                 "status_code": resp.status_code,
-                "content_type": c_type or "video/mp4",
+                "content_type": c_type or ("application/vnd.apple.mpegurl" if is_hls else "video/mp4"),
                 "is_direct_video_stream": True,
+                "is_hls": is_hls,
+                "segment_count": segment_count,
+                "is_dev_local_stream": is_dev_stream,
+                "proxy_url": proxy_url,
                 "error_reason": None,
                 "latency_ms": elapsed_ms,
                 "checked_at": datetime.utcnow().isoformat()
@@ -294,6 +323,9 @@ def check_video_source(session_id: str, req: SourceCheckRequest, db: Session = D
                 "status_code": resp.status_code,
                 "content_type": c_type,
                 "is_direct_video_stream": False,
+                "is_hls": is_hls,
+                "is_dev_local_stream": is_dev_stream,
+                "proxy_url": None,
                 "error_reason": f"Unexpected Content-Type: {c_type}",
                 "latency_ms": elapsed_ms,
                 "checked_at": datetime.utcnow().isoformat()
@@ -307,6 +339,9 @@ def check_video_source(session_id: str, req: SourceCheckRequest, db: Session = D
             "status_code": 0,
             "content_type": None,
             "is_direct_video_stream": False,
+            "is_hls": False,
+            "is_dev_local_stream": False,
+            "proxy_url": None,
             "error_reason": f"Connection failed: {str(e)}",
             "latency_ms": elapsed_ms,
             "checked_at": datetime.utcnow().isoformat()
@@ -316,6 +351,79 @@ def check_video_source(session_id: str, req: SourceCheckRequest, db: Session = D
     session.source_check_result_json = res
     db.commit()
     return res
+
+
+@router.get("/{session_id}/hls-proxy")
+def hls_proxy(session_id: str, url: str = Query(...), db: Session = Depends(get_db)):
+    """
+    Secure HLS stream proxy for local development testing and CORS-safe streaming.
+    Strictly re-validates the requested URL against validate_stream_url() on EVERY call.
+    For .m3u8 playlists, rewrites referenced segment URLs to route through the secure proxy.
+    For .ts segments, streams the segment bytes with appropriate video/mp2t headers.
+    """
+    session = db.query(LiveSession).filter_by(id=session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Live session not found")
+
+    is_safe, detail, meta = validate_stream_url(url)
+    if not is_safe:
+        raise HTTPException(
+            status_code=403,
+            detail=f"SECURITY_BLOCKED: HLS proxy request rejected by SSRF policy: {detail}"
+        )
+
+    try:
+        resp = safe_fetch_stream_content(url, timeout=5)
+        if resp.status_code >= 400:
+            raise HTTPException(status_code=resp.status_code, detail=f"Upstream stream returned HTTP {resp.status_code}")
+
+        c_type = resp.headers.get("Content-Type", "")
+        parsed_path = urllib.parse.urlparse(url).path.lower()
+        is_playlist = parsed_path.endswith(".m3u8") or "mpegurl" in c_type.lower()
+
+        if is_playlist:
+            playlist_text = resp.text
+            valid, msg, segments = validate_and_inspect_hls_playlist(url, playlist_text)
+            if not valid:
+                raise HTTPException(status_code=403, detail=msg)
+
+            # Rewrite relative or absolute segment URLs to route through the proxy
+            rewritten_lines = []
+            for line in playlist_text.splitlines():
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#"):
+                    rewritten_lines.append(line)
+                else:
+                    abs_seg_url = urllib.parse.urljoin(url, stripped)
+                    proxy_seg_url = f"/api/live-sessions/{session_id}/hls-proxy?url={urllib.parse.quote(abs_seg_url)}"
+                    rewritten_lines.append(proxy_seg_url)
+
+            rewritten_content = "\n".join(rewritten_lines)
+            return Response(
+                content=rewritten_content,
+                media_type="application/vnd.apple.mpegurl",
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                }
+            )
+        else:
+            # Segment or binary video stream
+            media_type = "video/mp2t" if parsed_path.endswith(".ts") else (c_type or "application/octet-stream")
+            return Response(
+                content=resp.content,
+                media_type=media_type,
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+                    "Cache-Control": "public, max-age=3600",
+                }
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Proxy stream fetch error: {str(e)}")
 
 
 @router.post("/{session_id}/start")

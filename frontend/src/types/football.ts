@@ -512,6 +512,10 @@ export interface SourceCheckResult {
   status_code: number;
   content_type?: string;
   is_direct_video_stream: boolean;
+  is_hls?: boolean;
+  segment_count?: number;
+  is_dev_local_stream?: boolean;
+  proxy_url?: string | null;
   error_reason?: string;
   latency_ms: number;
   checked_at: string;

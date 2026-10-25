@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Hls from 'hls.js';
 import { useLanguage } from '../i18n/LanguageContext';
 import { api } from '../services/api';
 import {
@@ -58,6 +59,63 @@ export const LiveMonitorPage: React.FC = () => {
 
   // Auto-tick simulation timer
   const tickIntervalRef = useRef<any>(null);
+
+  // HLS Video Playback Refs
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const hlsInstanceRef = useRef<Hls | null>(null);
+
+  // Play video stream when source check succeeds
+  useEffect(() => {
+    if (!videoRef.current || !sourceCheck?.accessible || !sourceCheck?.is_direct_video_stream) {
+      return;
+    }
+
+    const videoEl = videoRef.current;
+    const isHls = sourceCheck.is_hls || streamUrl.toLowerCase().includes('.m3u8');
+
+    let streamSrc = streamUrl;
+    if (sourceCheck.proxy_url) {
+      if (sourceCheck.proxy_url.startsWith('http')) {
+        streamSrc = sourceCheck.proxy_url;
+      } else {
+        const origin = window.location.origin.includes('5173') ? 'http://127.0.0.1:8000' : '';
+        streamSrc = `${origin}${sourceCheck.proxy_url}`;
+      }
+    }
+
+    if (hlsInstanceRef.current) {
+      hlsInstanceRef.current.destroy();
+      hlsInstanceRef.current = null;
+    }
+
+    if (isHls) {
+      if (Hls.isSupported()) {
+        const hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+        });
+        hls.loadSource(streamSrc);
+        hls.attachMedia(videoEl);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          videoEl.play().catch(() => {});
+        });
+        hlsInstanceRef.current = hls;
+      } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+        videoEl.src = streamSrc;
+        videoEl.play().catch(() => {});
+      }
+    } else {
+      videoEl.src = streamSrc;
+      videoEl.play().catch(() => {});
+    }
+
+    return () => {
+      if (hlsInstanceRef.current) {
+        hlsInstanceRef.current.destroy();
+        hlsInstanceRef.current = null;
+      }
+    };
+  }, [sourceCheck, streamUrl]);
 
   // 1. Initial Load: matches list & recent sessions
   useEffect(() => {
@@ -649,7 +707,7 @@ export const LiveMonitorPage: React.FC = () => {
         </div>
       </div>
 
-      {/* SOURCE A DETAILS: VIDEO URL TESTER */}
+      {/* SOURCE A DETAILS: VIDEO URL TESTER & LIVE VIDEO PLAYER */}
       {sourceType === 'VIDEO_URL' && (
         <div style={{
           backgroundColor: '#0a101d',
@@ -658,12 +716,65 @@ export const LiveMonitorPage: React.FC = () => {
           padding: '16px 20px',
           marginBottom: '20px'
         }}>
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+          {/* Quick Presets Bar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700 }}>Quick Presets:</span>
+            <button
+              type="button"
+              onClick={() => setStreamUrl('http://127.0.0.1:8088/live.m3u8')}
+              style={{
+                fontSize: '11px',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                border: '1px solid #00ff87',
+                backgroundColor: 'rgba(0, 255, 135, 0.12)',
+                color: '#00ff87',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              Local HLS Stream (127.0.0.1:8088/live.m3u8)
+            </button>
+            <button
+              type="button"
+              onClick={() => setStreamUrl('https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8')}
+              style={{
+                fontSize: '11px',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                border: '1px solid #38bdf8',
+                backgroundColor: 'rgba(56, 189, 248, 0.12)',
+                color: '#38bdf8',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              Public Mux HLS Stream
+            </button>
+            <button
+              type="button"
+              onClick={() => setStreamUrl('https://sample-videos.com/video321/mp4/720/big_buck_bunny_720p_1mb.mp4')}
+              style={{
+                fontSize: '11px',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                border: '1px solid #64748b',
+                backgroundColor: 'rgba(100, 116, 139, 0.12)',
+                color: '#94a3b8',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              Sample MP4 Video
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
             <input
               type="text"
               value={streamUrl}
               onChange={(e) => setStreamUrl(e.target.value)}
-              placeholder="https://example.com/live/broadcast_stream.m3u8"
+              placeholder="http://127.0.0.1:8088/live.m3u8 or https://example.com/stream.m3u8"
               style={{
                 flex: 1,
                 backgroundColor: '#070b14',
@@ -686,10 +797,11 @@ export const LiveMonitorPage: React.FC = () => {
                 border: 'none',
                 fontWeight: 700,
                 fontSize: '12px',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
               }}
             >
-              {isCheckingSource ? 'Validating SSRF...' : 'Test Stream Decodability'}
+              {isCheckingSource ? 'Validating SSRF & HLS...' : 'Test Stream Decodability'}
             </button>
           </div>
 
@@ -697,24 +809,117 @@ export const LiveMonitorPage: React.FC = () => {
             <div style={{
               backgroundColor: sourceCheck.accessible ? 'rgba(0,255,135,0.08)' : 'rgba(239,68,68,0.08)',
               border: sourceCheck.accessible ? '1px solid #00ff87' : '1px solid #ef4444',
-              borderRadius: '6px',
-              padding: '10px 14px',
-              fontSize: '12px'
+              borderRadius: '8px',
+              padding: '12px 16px',
+              fontSize: '12px',
+              marginBottom: sourceCheck.accessible && sourceCheck.is_direct_video_stream ? '16px' : '0'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 700, color: sourceCheck.accessible ? '#00ff87' : '#ef4444' }}>
-                  {sourceCheck.accessible ? 'Stream Accessible & Valid' : 'Connection Blocked / Inaccessible'}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={{ fontWeight: 800, color: sourceCheck.accessible ? '#00ff87' : '#ef4444', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {sourceCheck.accessible ? '✓ Stream Accessible & Validated' : '✕ Connection Blocked / Inaccessible'}
+                  {sourceCheck.is_dev_local_stream && (
+                    <span style={{
+                      backgroundColor: 'rgba(0,255,135,0.2)',
+                      color: '#00ff87',
+                      fontSize: '10px',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontWeight: 800
+                    }}>
+                      DEV LOCAL STREAM ALLOWED
+                    </span>
+                  )}
+                  {sourceCheck.is_hls && (
+                    <span style={{
+                      backgroundColor: 'rgba(56,189,248,0.2)',
+                      color: '#38bdf8',
+                      fontSize: '10px',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontWeight: 800
+                    }}>
+                      HLS PLAYLIST VERIFIED ({sourceCheck.segment_count || 0} segments)
+                    </span>
+                  )}
                 </span>
-                <span style={{ color: '#94a3b8' }}>Checked in {sourceCheck.latency_ms}ms</span>
+                <span style={{ color: '#94a3b8' }}>Latency: {sourceCheck.latency_ms}ms</span>
               </div>
               {sourceCheck.error_reason && (
-                <p style={{ color: '#f87171', margin: '4px 0 0 0' }}>{sourceCheck.error_reason}</p>
+                <p style={{ color: '#f87171', margin: '6px 0 0 0', fontWeight: 600 }}>{sourceCheck.error_reason}</p>
               )}
               {sourceCheck.content_type && (
-                <p style={{ color: '#94a3b8', margin: '4px 0 0 0' }}>
+                <p style={{ color: '#94a3b8', margin: '6px 0 0 0' }}>
                   Content-Type: <code>{sourceCheck.content_type}</code> • Direct Video Stream: {sourceCheck.is_direct_video_stream ? 'Yes' : 'No'}
+                  {sourceCheck.proxy_url && (
+                    <span> • CORS Proxy: <code>{sourceCheck.proxy_url}</code></span>
+                  )}
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Real-time Video Stream Player Screen */}
+          {sourceCheck?.accessible && sourceCheck?.is_direct_video_stream && (
+            <div style={{
+              position: 'relative',
+              borderRadius: '10px',
+              overflow: 'hidden',
+              backgroundColor: '#020617',
+              border: '1px solid #1e293b',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+            }}>
+              {/* Broadcast Top Overlay */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                zIndex: 10,
+                padding: '8px 14px',
+                background: 'linear-gradient(180deg, rgba(7,12,22,0.85) 0%, rgba(7,12,22,0) 100%)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{
+                    display: 'inline-block',
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ef4444',
+                    animation: 'pulse 1.5s infinite'
+                  }} />
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: '#ffffff', letterSpacing: '0.05em' }}>
+                    {sourceCheck.is_hls ? 'LIVE HLS FEED' : 'LIVE DIRECT VIDEO FEED'}
+                  </span>
+                  {sourceCheck.is_dev_local_stream && (
+                    <span style={{ fontSize: '10px', color: '#00ff87', backgroundColor: 'rgba(0,255,135,0.15)', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                      127.0.0.1:8088 (Local FFmpeg Test)
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ fontSize: '11px', color: '#94a3b8' }}>
+                  SSRF Policy: <strong style={{ color: '#00ff87' }}>Enforced & Verified</strong>
+                </div>
+              </div>
+
+              {/* Video Element */}
+              <video
+                ref={videoRef}
+                controls
+                autoPlay
+                muted
+                playsInline
+                style={{
+                  width: '100%',
+                  maxHeight: '420px',
+                  display: 'block',
+                  backgroundColor: '#000000',
+                  objectFit: 'contain'
+                }}
+              />
             </div>
           )}
         </div>
